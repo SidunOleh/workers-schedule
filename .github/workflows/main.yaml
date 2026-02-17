@@ -37,6 +37,7 @@ jobs:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USERNAME }}
           key: ${{ secrets.SERVER_KEY }}
+          passphrase: ${{ secrets.SERVER_KEY_PASSPHRASE }}
           port: 2200
           source: './'
           target: '/home/tema/public_html'
