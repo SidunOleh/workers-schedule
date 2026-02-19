@@ -28,7 +28,7 @@
             </Button>
             <Button 
                 :loading="clear.loading"
-                @click="clearEvents">
+                @click="clearEventsConfirm">
                 🆑 Clear
             </Button>
              <Button 
@@ -111,6 +111,15 @@ export default {
             copy: {
                 loading: false,
             },
+            schedule: {
+                1: {start: 14, end: 20},
+                2: {start: 9,  end: 15},
+                3: {start: 14, end: 20},
+                4: {start: 9,  end: 21},
+                5: {start: 9,  end: 21},
+                6: {start: 9,  end: 21},
+                0: {start: 9,  end: 21},
+            },
         }
     },
     computed: {
@@ -148,6 +157,7 @@ export default {
         },
     },
     methods: {
+        Modal,
         async getWorkers() {
             try {
                 this.workers = await workersApi.getAll()
@@ -210,6 +220,7 @@ export default {
                 this.ec.addEvent(this.toEcEvent(data))
             } catch (err) {
                 message.error(err?.response?.data?.message ?? err.message)
+                this.ec.unselect()
             }
         },  
         async editEvent(e) {
@@ -230,6 +241,7 @@ export default {
                 this.ec.updateEvent(this.toEcEvent(data))
             } catch (err) {
                 message.error(err?.response?.data?.message ?? err.message)
+                e.revert()
             }
         },
         async deleteEvent(id) {
@@ -290,6 +302,14 @@ export default {
                 message.error(err?.response?.data?.message ?? err.message)
             }
         },
+        clearEventsConfirm() {
+            Modal.confirm({
+                title: 'Are you sure you want to clear?',
+                okText: 'Yes',
+                cancelText: 'No',
+                onOk: this.clearEvents,
+            })
+        },
         async clearEvents() {
             try {
                 this.clear.loading = true
@@ -334,17 +354,94 @@ export default {
                 this.copy.loading = false
             }
         },
+        setEventsForNotWorkingHours() {
+            if (! this.ec)  {
+                return
+            }
+
+            this.ec.getEvents().forEach(event => {
+                if (event.extendedProps?.isNotWorking) {
+                    this.ec.removeEventById(event.id)
+                }
+            })
+
+            const view = this.ec.getView()
+            const start = new Date(view.activeStart)
+            const end = new Date(view.activeEnd)
+
+            let current = new Date(start)
+
+            while (current < end) {
+                const day = current.getDay()
+                const working = this.schedule[day]
+
+                this.workers.forEach(worker => {
+                    if (working.start > 0) {
+                        this.ec.addEvent({
+                            start: new Date(current.getFullYear(), current.getMonth(), current.getDate(), 0, 0),
+                            end: new Date(current.getFullYear(), current.getMonth(), current.getDate(), working.start, 0),
+                            resourceIds: [worker.id],
+                            display: 'background',
+                            color: '#0000005e',
+                            extendedProps: {isNotWorking: true},
+                        })
+                    }
+
+                    if (working.end < 24) {
+                        this.ec.addEvent({
+                            start: new Date(current.getFullYear(), current.getMonth(), current.getDate(), working.end, 0),
+                            end: new Date(current.getFullYear(), current.getMonth(), current.getDate(), 23, 59),
+                            resourceIds: [worker.id],
+                            display: 'background',
+                            color: '#0000005e',
+                            extendedProps: {isNotWorking: true},
+                        })
+                    }
+
+                })
+
+                current.setDate(current.getDate() + 1)
+            }
+        },
+        isOutsideSchedule(start, end) {
+            const day = new Date(start).getDay()
+            const working = this.schedule[day]
+
+            const startHour = new Date(start).getHours()
+            const endHour = new Date(end).getHours()
+
+            if (startHour < working.start || endHour > working.end) {
+                return true
+            }
+
+            return false
+        },
+        isValidDateRange(start, end) {
+            const startDate = new Date(start).getDate()
+            const endDate = new Date(end).getDate()
+
+
+            if (startDate != endDate) {
+                return false
+            }
+
+            return true
+        },
     },
     watch: {
         resources: {
             handler() { 
                 this.ec.setOption('resources', this.resources)
+
+                this.setEventsForNotWorkingHours()
             },
             deep: true,
         },
         events: {
             handler() {
                 this.ec.setOption('resources', this.resources)
+
+                this.setEventsForNotWorkingHours()
             },
             deep: true,
         },
@@ -359,17 +456,53 @@ export default {
             },
             slotMinTime: '09:00:00',
             slotMaxTime: '21:00:00',
-            slotHeight: 60,
+            slotHeight: 40,
             selectable: true,
             slotEventOverlap: false,
             slotDuration: '01:00:00',
             select: e => {
+                if (this.isOutsideSchedule(e.start, e.end)) {
+                    message.error('Event is outside schedule!')
+                    this.ec.unselect()
+                    return
+                }
+
+                if (!this.isValidDateRange(e.start, e.end)) {
+                    message.error('Invalid date range!')
+                    this.ec.unselect()
+                    return
+                }
+
                 this.createEvent(e)
             },
             eventDrop: e => {
+                if (this.isOutsideSchedule(e.event.start, e.event.end)) {
+                    message.error('Event is outside schedule!')
+                    e.revert()
+                    return
+                }
+
+                if (!this.isValidDateRange(e.event.start, e.event.end)) {
+                    message.error('Invalid date range!')
+                    e.revert()
+                    return
+                }
+
                 this.editEvent(e.event)
             },
             eventResize: e => {
+                if (this.isOutsideSchedule(e.event.start, e.event.end)) {
+                    message.error('Event is outside schedule!')
+                    e.revert()
+                    return
+                }
+
+                if (!this.isValidDateRange(e.event.start, e.event.end)) {
+                    message.error('Invalid date range!')
+                    e.revert()
+                    return
+                }
+
                 this.editEvent(e.event)
             },
             eventClick: e => {
@@ -435,11 +568,11 @@ export default {
 
 <style>
 #ec .ec-timeline .ec-body .ec-days {
-    flex-basis: 65px !important;
+    flex-basis: 40px !important;
 }
 
 #ec  .ec-timeline .ec-sidebar .ec-resource {
-    flex-basis: 65px !important;
+    flex-basis: 40px !important;
 }
 
 #ec .ec-toolbar {
@@ -449,6 +582,15 @@ export default {
 .worker {
     border-left-width: 3px;
     padding-left: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+}
+
+.ec-resource span {
+    width: 100%;
 }
 
 .worker-name {
@@ -475,5 +617,9 @@ export default {
 
 .worker-delete {
     cursor: pointer;
+}
+
+#ec .ec-events {
+    border-right: 1px solid black;
 }
 </style>
