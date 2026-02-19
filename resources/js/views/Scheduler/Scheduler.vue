@@ -203,7 +203,7 @@ export default {
                 resourceIds: [event.worker_id],
                 start: new Date(event.start),
                 end: new Date(event.end),
-                title: {html:`${event.worker.name}`},
+                title: {html:`<div class="event-card">${event.worker.name} <span class="delete-event" data-event-id="${event.id}">🗑</span></div>`},
                 color: event.worker.color,
                 extendedProps: {...event},
             }
@@ -218,6 +218,7 @@ export default {
 
                 this.events.push(data)
                 this.ec.addEvent(this.toEcEvent(data))
+                this.ec.unselect()
             } catch (err) {
                 message.error(err?.response?.data?.message ?? err.message)
                 this.ec.unselect()
@@ -506,12 +507,12 @@ export default {
                 this.editEvent(e.event)
             },
             eventClick: e => {
-                Modal.confirm({
-                    title: 'Are you sure you want to delete?',
-                    okText: 'Yes',
-                    cancelText: 'No',
-                    onOk: () => this.deleteEvent(e.event.id),
-                })
+                // Modal.confirm({
+                //     title: 'Are you sure you want to delete?',
+                //     okText: 'Yes',
+                //     cancelText: 'No',
+                //     onOk: () => this.deleteEvent(e.event.id),
+                // })
             },
             eventSources: [{events: this.getEvents,}]
         })
@@ -561,6 +562,23 @@ export default {
                 e.preventDefault()
                 scroller.scrollLeft += e.deltaY
             }, { passive: false })
+        })
+
+        document.addEventListener('click', (e) => {
+            const el = e.target
+
+            if (! el.classList.contains('delete-event')) {
+                return
+            }
+
+            Modal.confirm({
+                title: 'Are you sure you want to delete?',
+                okText: 'Yes',
+                cancelText: 'No',
+                onOk: () => {
+                    this.deleteEvent(el.getAttribute('data-event-id'))
+                },
+            })
         })
     },
 }
@@ -621,5 +639,24 @@ export default {
 
 #ec .ec-events {
     border-right: 1px solid black;
+}
+
+.event-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.ec-event-title {
+    flex-grow: 1;
+}
+
+.delete-event {
+    cursor: pointer;
+    padding-right: 5px;
+}
+
+.delete-event:hover {
+    scale: 1.1;
 }
 </style>
