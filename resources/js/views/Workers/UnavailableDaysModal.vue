@@ -13,6 +13,10 @@
             v-if="selectedDay"
             layout="vertical"
             style="margin-top: 10px;">
+            <TypographyTitle :level="4">
+                {{ formatDate(selectedDay) }}
+            </TypographyTitle>
+
             <FormItem label="Unavailable">
                 <Switch v-model:checked="selectedDate.unavailable"/>
             </FormItem>
@@ -41,8 +45,9 @@
 </template>
 
 <script>
-import { Modal, message, Segmented, Switch, FormItem, Form, TimePicker, Button, } from 'ant-design-vue'
+import { Modal, message, Segmented, Switch, FormItem, Form, TimePicker, Button, TypographyTitle, } from 'ant-design-vue'
 import workersApi from '../../api/workers'
+import { formatDate } from '../../helpers/helpers'
 
 export default {
     props: [
@@ -55,7 +60,7 @@ export default {
     components: {
         Modal, Segmented, Switch,
         FormItem, Form, TimePicker,
-        Button,
+        Button, TypographyTitle,
     },
     data() {
         return {
@@ -79,6 +84,7 @@ export default {
         },
     },
     methods: {
+        formatDate,
         async getUnavailableDays() {
             try {
                 this.loading = true

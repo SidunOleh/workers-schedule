@@ -32,9 +32,10 @@
                 🆑 Clear
             </Button>
              <Button 
+                v-if="!isItPrevWeek"
                 :loading="copy.loading"
-                @click="copyEvents">
-                📋 Copy
+                @click="copyEventsConfirm">
+                📋 Copy Previous Week
             </Button>
         </FLex>
 
@@ -88,6 +89,7 @@ export default {
     },
     data() {
         return {
+            ec: null,
             workers: [],
             workersModal: {
                 open: false,
@@ -120,6 +122,10 @@ export default {
                 6: {start: 9,  end: 21},
                 0: {start: 9,  end: 21},
             },
+            week: [
+                null,
+                null,
+            ],
         }
     },
     computed: {
@@ -154,6 +160,18 @@ export default {
             })
 
             return hours
+        },
+        isItPrevWeek() {
+            if (! this.week[0]) {
+                return false
+            }
+
+            const calendarEnd = this.week[1]
+
+            const today = new Date()
+            today.setHours(23, 59, 59, 999)
+
+            return calendarEnd < today
         },
     },
     methods: {
@@ -258,10 +276,12 @@ export default {
         prev() {
             this.ec.prev()
             this.calendarLabel = this.formatCalendarDate()
+            this.setCurrentWeek()
         },
         next() {
             this.ec.next()
             this.calendarLabel = this.formatCalendarDate()
+            this.setCurrentWeek()
         },
         calcWorkerTime(worker) {
             let time = 0
@@ -332,6 +352,14 @@ export default {
             } finally {
                 this.clear.loading = false
             }
+        },
+        copyEventsConfirm() {
+            Modal.confirm({
+                title: 'Are you sure you want to copy?',
+                okText: 'Yes',
+                cancelText: 'No',
+                onOk: this.copyEvents,
+            })
         },
         async copyEvents() {
             try {
@@ -428,6 +456,13 @@ export default {
 
             return true
         },
+        setCurrentWeek() {
+            const view = this.ec.getView()
+            const start = new Date(view.activeStart)
+            const end = new Date(view.activeEnd)
+
+            this.week = [start, end]
+        },
     },
     watch: {
         resources: {
@@ -460,7 +495,8 @@ export default {
             slotHeight: 40,
             selectable: true,
             slotEventOverlap: false,
-            slotDuration: '01:00:00',
+            slotDuration: '00:15:00',
+            firstDay: 1,
             select: e => {
                 if (this.isOutsideSchedule(e.start, e.end)) {
                     message.error('Event is outside schedule!')
@@ -516,6 +552,8 @@ export default {
             },
             eventSources: [{events: this.getEvents,}]
         })
+
+        this.setCurrentWeek()
 
         this.calendarLabel = this.formatCalendarDate()
 
