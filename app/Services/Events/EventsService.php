@@ -3,9 +3,9 @@
 namespace App\Services\Events;
 
 use App\Exceptions\TimeIsUnavailableForWorkerException;
-use App\Models\Worker;
+use App\Models\User;
 use App\Models\WorkerEvent;
-use App\Services\Workers\WorkersService;
+use App\Services\Users\UsersService;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Illuminate\Support\Facades\DB;
@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\DB;
 class EventsService
 {
     public function __construct(
-        private WorkersService $workersService
+        private UsersService $usersService
     )
     {
 
@@ -24,40 +24,42 @@ class EventsService
         $startStr = $start->format('Y-m-d H:i:s');
         $endStr = $end->format('Y-m-d H:i:s');
         
-        return WorkerEvent::whereBetween('start', [$startStr, $endStr])
-            ->orWhereBetween('end', [$startStr, $endStr])
-            ->get();
+        return WorkerEvent::where(function ($q) use($startStr, $endStr) {
+            $q->whereBetween('start', [$startStr, $endStr])
+            ->orWhereBetween('end', [$startStr, $endStr]);
+        })->whereNotNull('end')->get();
     }
 
-    public function create(Worker $worker, Carbon $start, Carbon $end): WorkerEvent
+    public function create(User $user, Carbon $start, ?Carbon $end = null, $type = WorkerEvent::PLANED): WorkerEvent
     {
-        if (! $this->workersService->isAvailableTimeRage($worker, $start, $end)) {
+        if (! $this->usersService->isAvailableTimeRage($user, $start, $end)) {
             throw new TimeIsUnavailableForWorkerException();
         }
 
         return WorkerEvent::create([
-            'worker_id' => $worker->id,
+            'user_id' => $user->id,
             'start' => $start->format('Y-m-d H:i:s'),
-            'end' => $end->format('Y-m-d H:i:s'),
+            'end' => $end?->format('Y-m-d H:i:s') ?? null,
+            'type' => $type,
         ]);
     }
 
-    public function edit(WorkerEvent $workerEvent, Worker $worker, Carbon $start, Carbon $end)
+    public function edit(WorkerEvent $userEvent, User $user, Carbon $start, Carbon $end)
     {
-        if (! $this->workersService->isAvailableTimeRage($worker, $start, $end)) {
+        if (! $this->usersService->isAvailableTimeRage($user, $start, $end)) {
             throw new TimeIsUnavailableForWorkerException();
         }
 
-        $workerEvent->update([
-            'worker_id' => $worker->id,
+        $userEvent->update([
+            'user_id' => $user->id,
             'start' => $start->format('Y-m-d H:i:s'),
             'end' => $end->format('Y-m-d H:i:s'),
         ]);
     }
 
-    public function delete(WorkerEvent $workerEvent)
+    public function delete(WorkerEvent $userEvent)
     {
-        $workerEvent->delete();
+        $userEvent->delete();
     }
 
     public function clear(Carbon $start, Carbon $end): void
@@ -66,7 +68,9 @@ class EventsService
         $endStr = $end->format('Y-m-d H:i:s');
 
         WorkerEvent::whereBetween('start', [$startStr, $endStr])
-            ->orWhereBetween('end', [$startStr, $endStr])->delete();
+            ->orWhereBetween('end', [$startStr, $endStr])
+            ->where('type', WorkerEvent::PLANED)
+            ->delete();
     }
 
     public function copy(Carbon $start, Carbon $end): void
@@ -76,15 +80,17 @@ class EventsService
         foreach (CarbonPeriod::create($start, $end) as $date) {
             $prevDate = $date->copy()->subWeek();
 
-            $events = WorkerEvent::where(DB::raw('DATE(start)'), $prevDate->format('Y-m-d'))->get();
+            $events = WorkerEvent::where(DB::raw('DATE(start)'), $prevDate->format('Y-m-d'))
+                ->where('type', WorkerEvent::PLANED)
+                ->get();
 
             foreach ($events as $event) {
                 $newEvent = $event->replicate();
                 $newEvent->start = $newEvent->start->addWeek();
                 $newEvent->end = $newEvent->end->addWeek();
 
-                if ($this->workersService->isAvailableTimeRage(
-                    $newEvent->worker, 
+                if ($this->usersService->isAvailableTimeRage(
+                    $newEvent->user, 
                     $newEvent->start, 
                     $newEvent->end)
                 ) {
@@ -92,5 +98,10 @@ class EventsService
                 }
             }
         }
+    }
+
+    public function getUnclosedEvent(User $user): ?WorkerEvent
+    {
+        return WorkerEvent::whereNull('end')->where('user_id', $user->id)->first();
     }
 }

@@ -9,7 +9,7 @@ class UnavailableDay extends Model
 {
     protected $fillable = [
         'date',
-        'worker_id',
+        'user_id',
         'unavailable_from',
         'unavailable_to',
     ];
@@ -20,8 +20,8 @@ class UnavailableDay extends Model
         'unavailable_to' => 'date:H:i',
     ];
 
-    public function worker(): BelongsTo
+    public function user(): BelongsTo
     {
-        return $this->belongsTo(Worker::class);
+        return $this->belongsTo(User::class);
     }
 }

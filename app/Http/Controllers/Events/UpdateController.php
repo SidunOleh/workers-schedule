@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Events;
 use App\Exceptions\TimeIsUnavailableForWorkerException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Events\UpdateRequest;
-use App\Models\Worker;
+use App\Models\User;
 use App\Models\WorkerEvent;
 use App\Services\Events\EventsService;
 use Carbon\Carbon;
@@ -23,11 +23,11 @@ class UpdateController extends Controller
     public function __invoke(WorkerEvent $workerEvent, UpdateRequest $request)
     {
         try {
-            $worker = Worker::find($request->worker_id);
+            $user = User::find($request->user_id);
             $start = Carbon::createFromFormat('Y-m-d H:i:s', $request->start);
             $end = Carbon::createFromFormat('Y-m-d H:i:s', $request->end);
 
-            $this->eventsService->edit($workerEvent, $worker, $start, $end);
+            $this->eventsService->edit($workerEvent, $user, $start, $end);
 
             $workerEvent->refresh();
 

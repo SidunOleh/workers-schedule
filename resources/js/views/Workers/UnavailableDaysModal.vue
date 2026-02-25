@@ -46,7 +46,7 @@
 
 <script>
 import { Modal, message, Segmented, Switch, FormItem, Form, TimePicker, Button, TypographyTitle, } from 'ant-design-vue'
-import workersApi from '../../api/workers'
+import usersApi from '../../api/users'
 import { formatDate } from '../../helpers/helpers'
 
 export default {
@@ -89,7 +89,7 @@ export default {
             try {
                 this.loading = true
 
-                const data = await workersApi.getUnavailableDays(
+                const data = await usersApi.getUnavailableDays(
                     this.worker, 
                     this.formatD(this.start), 
                     this.formatD(this.end)
@@ -119,7 +119,8 @@ export default {
         async save() {
             try {
                 this.loading = true
-                await workersApi.changeUnavailableDays(this.worker, {days: this.data})
+                await usersApi.changeUnavailableDays(this.worker, {days: this.data})
+                this.$emit('save')
                 message.success('Successfully saved.')
             } catch (err) {
                  message.error(err?.response?.data?.message ?? err.message)

@@ -14,10 +14,11 @@ return new class extends Migration
         Schema::create('worker_events', function (Blueprint $table) {
             $table->id();
             $table->dateTime('start');
-            $table->dateTime('end');
-            $table->foreignId('worker_id')
+            $table->dateTime('end')->nullable();
+            $table->foreignId('user_id')
                 ->constrained()
                 ->cascadeOnDelete();
+            $table->string('type');
             $table->timestamps();
         });
     }

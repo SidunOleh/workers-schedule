@@ -10,7 +10,8 @@ class WorkerEvent extends Model
     protected $fillable = [
         'start',
         'end',
-        'worker_id',
+        'user_id',
+        'type',
     ];
 
     protected $casts = [
@@ -19,11 +20,15 @@ class WorkerEvent extends Model
     ];
 
     protected $with = [
-        'worker',
+        'user',
     ];
 
-    public function worker(): BelongsTo
+    public const PLANED = 'planed';
+
+    public const REAL = 'real';
+
+    public function user(): BelongsTo
     {
-        return $this->belongsTo(Worker::class);
+        return $this->belongsTo(User::class);
     }
 }

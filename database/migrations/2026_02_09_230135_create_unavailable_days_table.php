@@ -14,12 +14,12 @@ return new class extends Migration
         Schema::create('unavailable_days', function (Blueprint $table) {
             $table->id();
             $table->date('date');
-            $table->foreignId('worker_id')
+            $table->foreignId('user_id')
                 ->constrained()
                 ->cascadeOnDelete();
             $table->time('unavailable_from')->nullable();
             $table->time('unavailable_to')->nullable();
-            $table->unique(['worker_id', 'date']);
+            $table->unique(['user_id', 'date']);
             $table->timestamps();
         });
     }

@@ -19,30 +19,33 @@
             </FLex>
 
             <strong>{{ calendarLabel }}</strong>
+
+            <Switch 
+                checked-children="All" 
+                un-checked-children="Only me"
+                v-model:checked="showAllWorkers"/>
         </FLex>
 
         <Flex 
             :gap="10"
-            :align="'center'"
-            :wrap="'wrap'">
-            <Button @click="createUser">
-                + 👤 User
-            </Button>
+            :align="'center'">
             <Button 
-                :loading="clear.loading"
-                @click="clearEventsConfirm">
-                🆑 Clear
+                v-if="! clock.data"
+                :loading="clock.loading"
+                @click="clockIn">
+                ⏱️ Clock in
             </Button>
-             <Button 
-                v-if="!isItPrevWeek"
-                :loading="copy.loading"
-                @click="copyEventsConfirm">
-                📋 Copy Previous Week
+
+            <Button 
+                v-if="clock.data"
+                :loading="clock.loading"
+                @click="clockOut">
+                ⏱️ Clock out
             </Button>
         </FLex>
 
         <Flex 
-            :gap="15"
+            :gap="20"
             :align="'center'">
             <Flex 
                 :vertical="true"
@@ -69,14 +72,6 @@
         </div>
     </Spin>
 
-    <UsersModal
-        v-if="usersModal.open"
-        v-model:open="usersModal.open"
-        :action="usersModal.action"
-        :worker="usersModal.worker"
-        :title="usersModal.title"
-        @create="data => data.role == 'worker' ? workers.push(data) : null"/>
-
     <UnavailableDaysModal
         v-if="unavailableDaysModal.open"
         v-model:open="unavailableDaysModal.open"
@@ -90,27 +85,20 @@
 <script>
 import usersApi from '../../api/users'
 import eventsApi from '../../api/events'
-import { message, Flex, Button, Spin, Modal, } from 'ant-design-vue'
-import UsersModal from '../Users/Modal.vue'
+import { message, Flex, Button, Spin, Modal, Switch, } from 'ant-design-vue'
 import UnavailableDaysModal from '../Workers/UnavailableDaysModal.vue'
 import { formatToYMDHIS } from '../../helpers/helpers'
 import authApi from '../../api/auth'
 
 export default {
     components: {
-        Flex, Button, UsersModal,
-        Spin, Modal, UnavailableDaysModal,
+        Flex, Button, UnavailableDaysModal,
+        Spin, Modal, Switch,
     },
     data() {
         return {
             ec: null,
             workers: [],
-            usersModal: {
-                open: false,
-                action: 'create',
-                worker: null,
-                title: '',
-            },
             unavailableDaysModal: {
                 open: false,
                 worker: null,
@@ -120,11 +108,9 @@ export default {
             },
             loading: false,
             events: [],
-            clear: {
+            clock: {
                 loading: false,
-            },
-            copy: {
-                loading: false,
+                data: null,
             },
             schedule: {
                 1: {start: 14, end: 20},
@@ -143,11 +129,12 @@ export default {
             logout: {
                 loading: false,
             },
+            showAllWorkers: true,
         }
     },
     computed: {
         resources() {
-            return this.workers?.map(worker => ({
+            return this.workers?.filter(worker => this.showAllWorkers || worker.id == authApi.user()?.id).map(worker => ({
                 id: worker.id,
                 title: {
                     html: `<div class="worker" data-id="${worker.id}" style="border-color: ${worker.color};">
@@ -158,12 +145,7 @@ export default {
                                 <div>
                                     ${this.calcWorkerTime(worker)}h/${this.calcWorkerTime(worker, 'real')}h
                                 </div>
-                                <div class="worker-settings">
-                                    ⚙️
-                                </div>
-                                <div class="worker-delete">
-                                    🗑
-                                </div>
+                                ${authApi.user()?.id == worker.id ? '<div class="worker-settings">⚙️</div>' : ''}
                             </div>
                         </div>
                         `,
@@ -213,6 +195,7 @@ export default {
         },
     },
     methods: {
+        authApi,
         Modal,
         async getWorkers() {
             try {
@@ -220,12 +203,6 @@ export default {
             } catch (err) {
                 console.error(err)
             }
-        },
-        createUser() {
-            this.usersModal.action = 'create'
-            this.usersModal.worker = null
-            this.usersModal.open = true
-            this.usersModal.title = 'Create user'
         },
         async getEvents(fetchInfo, successCallback) {
             try {
@@ -250,59 +227,12 @@ export default {
                 resourceIds: [event.user_id],
                 start: new Date(event.start),
                 end: event.end ? new Date(event.end) : new Date(),
-                title: {html:`<div class="event-card"><span></span><span class="delete-event" data-event-id="${event.id}">🗑</span></div>`},
+                title: {html:`<div class="event-card"></div>`},
                 color: event.user.color ?? 'black',
                 extendedProps: {...event},
                 display: event.type == 'real' ? 'background' : '',
             }
-        },
-        async createEvent(e) {
-            try {
-                const data = await eventsApi.create({
-                    user_id: e.resource.id,
-                    start: formatToYMDHIS(e.start, true),
-                    end: formatToYMDHIS(e.end, true),
-                })
-
-                this.events.push(data)
-                this.ec.addEvent(this.toEcEvent(data))
-                this.ec.unselect()
-            } catch (err) {
-                message.error(err?.response?.data?.message ?? err.message)
-                this.ec.unselect()
-            }
-        },  
-        async editEvent(e) {
-            try {
-                const data = await eventsApi.edit(e.extendedProps.id, {
-                    user_id: e.resourceIds[0],
-                    start: formatToYMDHIS(e.start, true),
-                    end: formatToYMDHIS(e.end, true),
-                })
-
-                this.events = this.events.map(event => {
-                    if (event.id == e.extendedProps.id) {
-                        return data
-                    }
-
-                    return event
-                })
-                this.ec.updateEvent(this.toEcEvent(data))
-            } catch (err) {
-                message.error(err?.response?.data?.message ?? err.message)
-                e.revert()
-            }
-        },
-        async deleteEvent(id) {
-            try {
-                await eventsApi.delete(id)
-
-                this.events = this.events.filter(event => event.id != id)
-                this.ec.removeEventById(id)
-            } catch (err) {
-                message.error(err?.response?.data?.message ?? err.message)
-            }
-        },
+        }, 
         prev() {
             this.ec.prev()
             this.setCurrentWeek()
@@ -315,6 +245,7 @@ export default {
             let time = 0
 
             this.events.filter(event => event.user_id == worker.id && event.type == type).map(event => {
+                console.log(event.start, event.end ?? new Date(), this.diffInHours(event.start, event.end ?? new Date()))
                 time += this.diffInHours(event.start, event.end ?? new Date())
             })
 
@@ -328,77 +259,6 @@ export default {
             const diffHours = diffMs / 1000 / 60 / 60
 
             return Math.round(diffHours * 10) / 10
-        },
-        async deleteWorker(id) {
-            try {
-                await usersApi.delete(id)
-
-                this.workers = this.workers.filter(worker => worker.id != id)
-            } catch (err) {
-                console.error(err)
-
-                message.error(err?.response?.data?.message ?? err.message)
-            }
-        },
-        clearEventsConfirm() {
-            Modal.confirm({
-                title: 'Are you sure you want to clear?',
-                okText: 'Yes',
-                cancelText: 'No',
-                onOk: this.clearEvents,
-            })
-        },
-        async clearEvents() {
-            try {
-                this.clear.loading = true
-
-                const view = this.ec.getView()
-                const start = new Date(view.activeStart)
-                const end = new Date(view.activeEnd)
-                end.setDate(end.getDate() - 1)
-
-                await eventsApi.clear(formatToYMDHIS(start), formatToYMDHIS(end))
-
-                message.success('Successfully cleared.')
-
-                this.ec.refetchEvents()
-            } catch (err) {
-                console.error(err)
-
-                message.error(err?.response?.data?.message ?? err.message)
-            } finally {
-                this.clear.loading = false
-            }
-        },
-        copyEventsConfirm() {
-            Modal.confirm({
-                title: 'Are you sure you want to copy?',
-                okText: 'Yes',
-                cancelText: 'No',
-                onOk: this.copyEvents,
-            })
-        },
-        async copyEvents() {
-            try {
-                this.copy.loading = true
-
-                const view = this.ec.getView()
-                const start = new Date(view.activeStart)
-                const end = new Date(view.activeEnd)
-                end.setDate(end.getDate() - 1)
-
-                await eventsApi.copy(formatToYMDHIS(start), formatToYMDHIS(end))
-
-                message.success('Successfully copied.')
-
-                this.ec.refetchEvents()
-            } catch (err) {
-                console.error(err)
-
-                message.error(err?.response?.data?.message ?? err.message)
-            } finally {
-                this.copy.loading = false
-            }
         },
         setEventsForNotWorkingHours() {
             if (! this.ec)  {
@@ -511,6 +371,40 @@ export default {
                 })
             })
         },
+        async getClockIn() {
+            try {
+                this.clock.loading = true
+                this.clock.data = await usersApi.getClockIn(authApi.user()?.id)
+            } catch (err) {
+                console.error(err)
+                message.error(err?.response?.data?.message ?? err.message)
+            } finally {
+                this.clock.loading = false
+            }
+        },
+        async clockIn() {
+            try {
+                this.clock.loading = true
+                this.clock.data = await usersApi.clockIn(authApi.user()?.id)
+            } catch (err) {
+                console.error(err)
+                message.error(err?.response?.data?.message ?? err.message)
+            } finally {
+                this.clock.loading = false
+            }
+        },
+        async clockOut() {
+            try {
+                this.clock.loading = true
+                await usersApi.clockOut(authApi.user()?.id)
+                this.clock.data = null
+            } catch (err) {
+                console.error(err)
+                message.error(err?.response?.data?.message ?? err.message)
+            } finally {
+                this.clock.loading = false
+            }
+        },
         async userLogout() {
             try {
                 this.logout.loading = true
@@ -567,54 +461,16 @@ export default {
             slotEventOverlap: false,
             slotDuration: '00:15:00',
             firstDay: 1,
-            select: e => {
-                if (!this.isValidDateRange(e.start, e.end)) {
-                    message.error('Invalid date range!')
-                    this.ec.unselect()
-                    return
-                }
-
-                this.createEvent(e)
-            },
-            eventDrop: e => {
-                if (!this.isValidDateRange(e.event.start, e.event.end)) {
-                    message.error('Invalid date range!')
-                    e.revert()
-                    return
-                }
-
-                this.editEvent(e.event)
-            },
-            eventResize: e => {
-                if (!this.isValidDateRange(e.event.start, e.event.end)) {
-                    message.error('Invalid date range!')
-                    e.revert()
-                    return
-                }
-
-                this.editEvent(e.event)
-            },
-            eventSources: [{events: this.getEvents,}]
+            eventSources: [{events: this.getEvents,}],
+            selectable: false,
+            eventStartEditable: false,
+            eventDurationEditable: false,
         })
 
         this.setCurrentWeek()
         this.setEventsForNotWorkingHours()
         this.getWorkers()
-
-        document.addEventListener('click', e => {
-            if (! e.target.classList.contains('worker-delete')) {
-                return
-            }
-
-            const el = e.target.closest('.worker')
-
-            Modal.confirm({
-                title: 'Are you sure you want to delete?',
-                okText: 'Yes',
-                cancelText: 'No',
-                onOk: () => this.deleteWorker(el.getAttribute('data-id')),
-            })
-        })
+        this.getClockIn()
 
         document.addEventListener('click', e => {
             if (! e.target.classList.contains('worker-settings')) {
@@ -642,23 +498,6 @@ export default {
                 e.preventDefault()
                 scroller.scrollLeft += e.deltaY
             }, { passive: false })
-        })
-
-        document.addEventListener('click', (e) => {
-            const el = e.target
-
-            if (! el.classList.contains('delete-event')) {
-                return
-            }
-
-            Modal.confirm({
-                title: 'Are you sure you want to delete?',
-                okText: 'Yes',
-                cancelText: 'No',
-                onOk: () => {
-                    this.deleteEvent(el.getAttribute('data-event-id'))
-                },
-            })
         })
     },
 }
@@ -710,7 +549,7 @@ export default {
 }
 
 #ec {
-    height: calc(100vh - 87px); 
+    height: calc(100vh - 88px); 
 }
 
 #ec .ec-container {

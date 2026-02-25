@@ -1,18 +1,8 @@
 <template>
     <div class="wrapper">
-        <Scheduler/>
+        <router-view/>
     </div>
 </template>
-
-<script>
-import Scheduler from './Scheduler/Scheduler.vue'
-
-export default {
-    components: {
-        Scheduler,
-    },
-}
-</script>
 
 <style>
 .wrapper {

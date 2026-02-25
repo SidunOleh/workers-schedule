@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Http\Requests\Workers;
+namespace App\Http\Requests\Auth;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class UpdateRequest extends FormRequest
+class LogInRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -22,8 +22,8 @@ class UpdateRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => 'required|string',
-            'color' => 'required|string',
+            'email' => 'required|email',
+            'password' => 'required|string',
         ];
     }
 }
