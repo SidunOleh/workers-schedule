@@ -318,7 +318,7 @@ export default {
                 time += this.diffInHours(event.start, event.end ?? new Date())
             })
 
-            return time
+            return Math.round(time * 10) / 10
         },
         diffInHours(start, end) {
             const _start = new Date(start)
