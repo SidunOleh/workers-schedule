@@ -15,12 +15,14 @@ use App\Http\Controllers\Users\GetClockInController;
 use App\Http\Controllers\Users\GetUnavailableDaysController;
 use App\Http\Controllers\Users\GetWorkersController;
 use App\Http\Controllers\Users\StoreController;
+use App\Http\Controllers\Users\UpdateController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth:sanctum',])->group(function () {
     Route::prefix('/users')->name('users.')->group(function () {
         Route::get('/workers', GetWorkersController::class)->name('get-workers');
         Route::post('/', StoreController::class)->name('store');
+        Route::put('/{user}', UpdateController::class)->name('update');
         Route::delete('/{user}', DeleteController::class)->name('delete');
         Route::get('/unavailable-days', GetAllUnavailableDaysController::class)->name('get-unavailable-days');
         Route::get('/{user}/unavailable-days', GetUnavailableDaysController::class)->name('get-unavailable-days-for-user');

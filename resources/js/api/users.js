@@ -9,6 +9,14 @@ export default {
 
         return res.data
     },
+    async edit(id, data) {
+        const res = await axios.post(`/api/users/${id}`, {
+            ...data,
+            _method: 'PUT',
+        })
+
+        return res.data
+    },
     async delete(id) {
         const res = await axios.delete(`/api/users/${id}`)
 

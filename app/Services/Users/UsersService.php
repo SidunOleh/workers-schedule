@@ -2,7 +2,6 @@
 
 namespace App\Services\Users;
 
-use App\Exceptions\UserHasUnclosedEventException;
 use App\Models\UnavailableDay;
 use App\Models\User;
 use App\Models\WorkerEvent;
@@ -13,18 +12,21 @@ class UsersService
 {
     public function getWorkers()
     {
-        return User::where('role', User::WORKER)->get();
+        return User::where('role', User::WORKER)->orderBy('order', 'DESC')->get();
     }
 
     public function create(array $data): User
     {
-        return User::create([
-            'email' => $data['email'],
-            'password' => $data['password'],
-            'name' => $data['name'],
-            'color' => $data['color'],
-            'role' => $data['role'],
-        ]);
+        return User::create($data);
+    }
+
+    public function edit(User $user, array $data): void
+    {
+        if (empty($data['password'])) {
+            unset($data['password']);
+        }
+
+        $user->update($data);
     }
 
     public function delete(User $user)

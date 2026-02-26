@@ -20,7 +20,7 @@
 
             <FormItem
                 label="Password"
-                :required="true"
+                :required="action == 'create'"
                 has-feedback
                 :validate-status="errors['password'] ? 'error' : ''"
                 :help="errors?.password">
@@ -61,9 +61,21 @@
                 <CompactPicker v-model="data.color"/>
             </FormItem>
 
+            <FormItem
+                label="Order"
+                :required="true"
+                has-feedback
+                :validate-status="errors['order'] ? 'error' : ''"
+                :help="errors.order">
+                <InputNumber
+                    style="width: 100%;"
+                    placeholder="Enter order"
+                    v-model:value="data.order"/>
+            </FormItem>
+
             <Button
                 :loading="loading"
-                @click="action == 'create' ? create() : null">
+                @click="action == 'create' ? create() : edit()">
                 Save
             </Button>
 
@@ -73,7 +85,7 @@
 </template>
 
 <script>
-import { Modal, Button, Form, FormItem, Input, message, InputPassword, Select, } from 'ant-design-vue'
+import { Modal, Button, Form, FormItem, Input, message, InputPassword, Select, InputNumber, } from 'ant-design-vue'
 import usersApi from '../../api/users'
 import 'vue-color/style.css'
 import { CompactPicker } from 'vue-color'
@@ -83,11 +95,12 @@ export default {
         'title',
         'open',
         'action',
+        'user',
     ],
     components: {
         Modal, Button, Form, 
         FormItem, Input, CompactPicker,
-        InputPassword, Select,
+        InputPassword, Select, InputNumber,
     },
     data() {
         return {
@@ -97,6 +110,7 @@ export default {
                 name: '',
                 role: 'worker',
                 color: '#4d4d4d',
+                order: 0,
             },
             errors: {},
             loading: false,
@@ -130,6 +144,28 @@ export default {
                 this.loading = false
             }
         },
+        async edit() {
+            try {
+                this.loading = true
+                this.errors = {}
+                const data = await usersApi.edit(this.data.id, this.data)
+                message.success('Successfully saved.')
+                this.$emit('edit', data)
+            } catch (err) {
+                if (err?.response?.status == 422) {
+                    this.errors = err?.response?.data?.errors
+                } else {
+                    message.error(err?.response?.data?.message ?? err.message)
+                }
+            } finally {
+                this.loading = false
+            }
+        },
+    },
+    mounted() {
+        if (this.user) {
+            this.data = {...this.user}
+        }
     },
 }
 </script>

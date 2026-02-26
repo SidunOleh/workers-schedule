@@ -6,7 +6,8 @@
         :wrap="'wrap'">
         <Flex 
             :gap="10"
-            :align="'center'">
+            :align="'center'"
+            :wrap="'wrap'">
             <Flex 
                 :gap="5"
                 :align="'center'">
@@ -24,6 +25,10 @@
                 checked-children="All" 
                 un-checked-children="Only me"
                 v-model:checked="showAllWorkers"/>
+
+            <Segmented 
+                v-model:value="selectedDay"
+                :options="days"/>
         </FLex>
 
         <Flex 
@@ -85,15 +90,16 @@
 <script>
 import usersApi from '../../api/users'
 import eventsApi from '../../api/events'
-import { message, Flex, Button, Spin, Modal, Switch, } from 'ant-design-vue'
+import { message, Flex, Button, Spin, Modal, Switch, Segmented, } from 'ant-design-vue'
 import UnavailableDaysModal from '../Workers/UnavailableDaysModal.vue'
-import { formatToYMDHIS } from '../../helpers/helpers'
+import { formatToYMDHIS, formatAMPM, } from '../../helpers/helpers'
 import authApi from '../../api/auth'
 
 export default {
     components: {
         Flex, Button, UnavailableDaysModal,
         Spin, Modal, Switch,
+        Segmented,
     },
     data() {
         return {
@@ -130,6 +136,7 @@ export default {
                 loading: false,
             },
             showAllWorkers: true,
+            selectedDay: null,
         }
     },
     computed: {
@@ -193,6 +200,26 @@ export default {
 
             return `${start.toLocaleDateString(undefined, opts)} – ${end.toLocaleDateString(undefined, opts)}`
         },
+        days() {
+            if (!this.week[0] || !this.week[1]) {
+                return
+            }
+
+            const days = []
+            const start = new Date(this.week[0])
+            const end = new Date(this.week[1])
+
+            end.setDate(end.getDate() - 1)
+
+            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                days.push({
+                    label: d.toLocaleDateString('en-US', { weekday: 'short' }),
+                    value: formatToYMDHIS(new Date(d), false),
+                })
+            }
+
+            return days
+        },
     },
     methods: {
         authApi,
@@ -227,7 +254,7 @@ export default {
                 resourceIds: [event.user_id],
                 start: new Date(event.start),
                 end: event.end ? new Date(event.end) : new Date(),
-                title: {html:`<div class="event-card"></div>`},
+                title: {html:`<div class="event-card"> - ${formatAMPM(event.end)}</div>`},
                 color: event.user.color ?? 'black',
                 extendedProps: {...event},
                 display: event.type == 'real' ? 'background' : '',
@@ -417,6 +444,29 @@ export default {
                 this.logout.loading = false
             }
         },
+        scrollToDay(date) {
+            this.$nextTick(() => {
+                const scroller = document.querySelector('#ec .ec-body')
+                if (! scroller) {
+                    return
+                }
+
+                const days = scroller.querySelectorAll('.ec-day')
+                if (! days.length) {
+                    return
+                }
+
+                const firstDay = new Date(this.week[0])
+                const targetDate = new Date(date)
+
+                const dayDiff = Math.floor((targetDate - firstDay) / (1000 * 60 * 60 * 24))
+
+                const index = Math.min(Math.max(dayDiff, 0), days.length - 1)
+
+                const dayColumn = days[index]
+                scroller.scrollLeft = dayColumn.offsetLeft
+            })
+        },
     },
     watch: {
         resources: {
@@ -429,6 +479,7 @@ export default {
         week: {
             handler() {
                 this.setEventsForNotWorkingHours()
+                this.selectedDay = formatToYMDHIS(this.week[0], false)
             },
             deep: true,
         },
@@ -444,6 +495,9 @@ export default {
             },
             deep: true,
         },
+        selectedDay() {
+            this.scrollToDay(this.selectedDay)  
+        },
     },
     mounted() {
         this.ec = EventCalendar.create(document.getElementById('ec'), {
@@ -456,7 +510,7 @@ export default {
             slotMinTime: '08:00:00',
             slotMaxTime: '22:00:00',
             slotHeight: 40,
-            slotWidth: 40,
+            slotWidth: 30,
             selectable: true,
             slotEventOverlap: false,
             slotDuration: '00:15:00',
@@ -513,7 +567,7 @@ export default {
 }
 
 #ec .ec-timeline .ec-time, .ec-timeline .ec-line {
-    width: 40px;
+    width: 30px;
 }
 
 #ec .ec-timeline .ec-time {

@@ -9,7 +9,8 @@
             :align="'center'">
             <Flex 
                 :gap="5"
-                :align="'center'">
+                :align="'center'"
+                :wrap="'wrap'">
                 <Button @click="prev">
                     Prev
                 </Button>
@@ -19,6 +20,10 @@
             </FLex>
 
             <strong>{{ calendarLabel }}</strong>
+
+            <Segmented 
+                v-model:value="selectedDay"
+                :options="days"/>
         </FLex>
 
         <Flex 
@@ -73,9 +78,10 @@
         v-if="usersModal.open"
         v-model:open="usersModal.open"
         :action="usersModal.action"
-        :worker="usersModal.worker"
+        :user="usersModal.user"
         :title="usersModal.title"
-        @create="data => data.role == 'worker' ? workers.push(data) : null"/>
+        @create="data => data.role == 'worker' ? getWorkers() : null"
+        @edit="getWorkers"/>
 
     <UnavailableDaysModal
         v-if="unavailableDaysModal.open"
@@ -90,16 +96,17 @@
 <script>
 import usersApi from '../../api/users'
 import eventsApi from '../../api/events'
-import { message, Flex, Button, Spin, Modal, } from 'ant-design-vue'
+import { message, Flex, Button, Spin, Modal, Segmented, } from 'ant-design-vue'
 import UsersModal from '../Users/Modal.vue'
 import UnavailableDaysModal from '../Workers/UnavailableDaysModal.vue'
-import { formatToYMDHIS } from '../../helpers/helpers'
+import { formatToYMDHIS, formatAMPM, } from '../../helpers/helpers'
 import authApi from '../../api/auth'
 
 export default {
     components: {
         Flex, Button, UsersModal,
         Spin, Modal, UnavailableDaysModal,
+        Segmented,
     },
     data() {
         return {
@@ -108,7 +115,7 @@ export default {
             usersModal: {
                 open: false,
                 action: 'create',
-                worker: null,
+                user: null,
                 title: '',
             },
             unavailableDaysModal: {
@@ -143,6 +150,7 @@ export default {
             logout: {
                 loading: false,
             },
+            selectedDay: null,
         }
     },
     computed: {
@@ -160,6 +168,9 @@ export default {
                                 </div>
                                 <div class="worker-settings">
                                     ⚙️
+                                </div>
+                                <div class="worker-edit">
+                                    📝
                                 </div>
                                 <div class="worker-delete">
                                     🗑
@@ -211,6 +222,26 @@ export default {
 
             return `${start.toLocaleDateString(undefined, opts)} – ${end.toLocaleDateString(undefined, opts)}`
         },
+        days() {
+            if (!this.week[0] || !this.week[1]) {
+                return
+            }
+
+            const days = []
+            const start = new Date(this.week[0])
+            const end = new Date(this.week[1])
+
+            end.setDate(end.getDate() - 1)
+
+            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                days.push({
+                    label: d.toLocaleDateString('en-US', { weekday: 'short' }),
+                    value: formatToYMDHIS(new Date(d), false),
+                })
+            }
+
+            return days
+        },
     },
     methods: {
         Modal,
@@ -223,7 +254,7 @@ export default {
         },
         createUser() {
             this.usersModal.action = 'create'
-            this.usersModal.worker = null
+            this.usersModal.user = null
             this.usersModal.open = true
             this.usersModal.title = 'Create user'
         },
@@ -250,10 +281,11 @@ export default {
                 resourceIds: [event.user_id],
                 start: new Date(event.start),
                 end: event.end ? new Date(event.end) : new Date(),
-                title: {html:`<div class="event-card"><span></span><span class="delete-event" data-event-id="${event.id}">🗑</span></div>`},
+                title: {html:`<div class="event-card"><span> - ${formatAMPM(event.end)}</span><span class="delete-event" data-event-id="${event.id}">🗑</span></div>`},
                 color: event.user.color ?? 'black',
                 extendedProps: {...event},
                 display: event.type == 'real' ? 'background' : '',
+                content: 'dd',
             }
         },
         async createEvent(e) {
@@ -523,6 +555,29 @@ export default {
                 this.logout.loading = false
             }
         },
+        scrollToDay(date) {
+            this.$nextTick(() => {
+                const scroller = document.querySelector('#ec .ec-body')
+                if (! scroller) {
+                    return
+                }
+
+                const days = scroller.querySelectorAll('.ec-day')
+                if (! days.length) {
+                    return
+                }
+
+                const firstDay = new Date(this.week[0])
+                const targetDate = new Date(date)
+
+                const dayDiff = Math.floor((targetDate - firstDay) / (1000 * 60 * 60 * 24))
+
+                const index = Math.min(Math.max(dayDiff, 0), days.length - 1)
+
+                const dayColumn = days[index]
+                scroller.scrollLeft = dayColumn.offsetLeft
+            })
+        },
     },
     watch: {
         resources: {
@@ -535,6 +590,7 @@ export default {
         week: {
             handler() {
                 this.setEventsForNotWorkingHours()
+                this.selectedDay = formatToYMDHIS(this.week[0], false)
             },
             deep: true,
         },
@@ -550,6 +606,9 @@ export default {
             },
             deep: true,
         },
+        selectedDay() {
+            this.scrollToDay(this.selectedDay)  
+        },
     },
     mounted() {
         this.ec = EventCalendar.create(document.getElementById('ec'), {
@@ -562,11 +621,12 @@ export default {
             slotMinTime: '08:00:00',
             slotMaxTime: '22:00:00',
             slotHeight: 40,
-            slotWidth: 40,
+            slotWidth: 30,
             selectable: true,
             slotEventOverlap: false,
             slotDuration: '00:15:00',
             firstDay: 1,
+            date: new Date(),
             select: e => {
                 if (!this.isValidDateRange(e.start, e.end)) {
                     message.error('Invalid date range!')
@@ -635,6 +695,20 @@ export default {
             this.unavailableDaysModal.title = `Settings ${this.formatCalendarDate()}`
         })
 
+        document.addEventListener('click', e => {
+            if (! e.target.classList.contains('worker-edit')) {
+                return
+            }
+
+            const el = e.target.closest('.worker')
+
+            const workerId = el.getAttribute('data-id')
+            this.usersModal.user = this.workers.find(worker => worker.id == workerId)
+            this.usersModal.action = 'edit'
+            this.usersModal.title = 'Edit user'
+            this.usersModal.open = true
+        })
+
         this.$nextTick(() => {
             const scroller = document.querySelector('#ec .ec-body') || document.getElementById('ec')
 
@@ -674,7 +748,7 @@ export default {
 }
 
 #ec .ec-timeline .ec-time, .ec-timeline .ec-line {
-    width: 40px;
+    width: 30px;
 }
 
 #ec .ec-timeline .ec-time {
@@ -719,6 +793,10 @@ export default {
 }
 
 #ec .worker-delete {
+    cursor: pointer;
+}
+
+#ec .worker-edit {
     cursor: pointer;
 }
 
