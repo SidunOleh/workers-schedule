@@ -40,7 +40,7 @@ jobs:
           passphrase: ${{ secrets.SERVER_KEY_PASSPHRASE }}
           port: 2200
           source: './'
-          target: '/home/tema/public_html'
+          target: '/home/hoursoffreedom/public_html/schedule.2hoursoffreedom.com'
 
       - uses: appleboy/ssh-action@master
         with:
@@ -50,7 +50,7 @@ jobs:
           passphrase: ${{ secrets.SERVER_KEY_PASSPHRASE }}
           port: 2200
           script: |
-              cd /home/tema/public_html
+              cd /home/hoursoffreedom/public_html/schedule.2hoursoffreedom.com
               chown -R tema:tema .
               find . -type d -exec chmod 755 {} \;
               chmod -R 775 storage bootstrap/cache

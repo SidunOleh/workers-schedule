@@ -52,15 +52,6 @@
         <Flex 
             :gap="20"
             :align="'center'">
-            <Flex 
-                :vertical="true"
-                :align="'center'">
-                <span style="font-size: 12px; line-height: 1;">Total Hours</span>
-                <span style="font-size: 20px; line-height: 1.3;">
-                    {{ totalHours }} / {{ totalRealHours }}
-                </span>
-            </FLex>
-
             <Button 
                 type="text"
                 :loading="logout.loading"
@@ -149,31 +140,15 @@ export default {
                                 ${worker.name}
                             </div>
                             <div class="worker-bottom">
-                                <div>
+                                ${authApi.user()?.id == worker.id ? `<div>
                                     ${this.calcWorkerTime(worker)}h/${this.calcWorkerTime(worker, 'real')}h
-                                </div>
+                                </div>` : ''}
                                 ${authApi.user()?.id == worker.id ? '<div class="worker-settings">⚙️</div>' : ''}
                             </div>
                         </div>
                         `,
                 }
             })) ?? []
-        },
-        totalHours() {
-            let hours = 0
-            this.workers.map(worker => {
-                hours += this.calcWorkerTime(worker)
-            })
-
-            return Math.round(hours * 10) / 10
-        },
-        totalRealHours() {
-            let hours = 0
-            this.workers.map(worker => {
-                hours += this.calcWorkerTime(worker, 'real')
-            })
-
-            return Math.round(hours * 10) / 10
         },
         isItPrevWeek() {
             if (! this.week[0]) {
