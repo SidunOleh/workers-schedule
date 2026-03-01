@@ -229,7 +229,7 @@ export default {
                 resourceIds: [event.user_id],
                 start: new Date(event.start),
                 end: event.end ? new Date(event.end) : new Date(),
-                title: {html:`<div class="event-card"> - ${formatAMPM(event.end)}</div>`},
+                title: {html:`<div class="event-card"> ${this.ec.getOption('view') == 'weekList' ? `- ${formatAMPM(event.end)}` : event.user.name}</div>`},
                 color: event.user.color ?? 'black',
                 extendedProps: {...event},
                 display: event.type == 'real' ? 'background' : '',
@@ -442,6 +442,13 @@ export default {
                 scroller.scrollLeft = dayColumn.offsetLeft
             })
         },
+        getView() {
+            if (window.innerWidth <= 768) {
+                return 'listWeek'
+            } else {
+                return 'resourceTimelineWeek'
+            }
+        },
     },
     watch: {
         resources: {
@@ -476,7 +483,7 @@ export default {
     },
     mounted() {
         this.ec = EventCalendar.create(document.getElementById('ec'), {
-            view: 'resourceTimelineWeek',
+            view: this.getView(),
             headerToolbar: {
                 start: '',
                 center: '',
@@ -527,6 +534,10 @@ export default {
                 e.preventDefault()
                 scroller.scrollLeft += e.deltaY
             }, { passive: false })
+        })
+
+        window.addEventListener('resize', () => {
+            this.ec.setOption('view', this.getView())
         })
     },
 }
