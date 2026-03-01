@@ -60,6 +60,12 @@
 
             <Button 
                 type="text"
+                @click="editCurrentUser">
+                ⚙️
+            </Button>
+
+            <Button 
+                type="text"
                 :loading="logout.loading"
                 @click="userLogout">
                 ➡️ 
@@ -577,6 +583,12 @@ export default {
                 const dayColumn = days[index]
                 scroller.scrollLeft = dayColumn.offsetLeft
             })
+        },
+        editCurrentUser() {
+            this.usersModal.user = authApi.user()
+            this.usersModal.action = 'edit'
+            this.usersModal.title = 'Edit user'
+            this.usersModal.open = true
         },
     },
     watch: {

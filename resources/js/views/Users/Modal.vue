@@ -62,6 +62,7 @@
             </FormItem>
 
             <FormItem
+                v-if="data.role == 'worker'"
                 label="Order"
                 :required="true"
                 has-feedback

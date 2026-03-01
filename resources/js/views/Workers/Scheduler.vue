@@ -27,6 +27,7 @@
                 v-model:checked="showAllWorkers"/>
 
             <Segmented 
+                v-if="windowWidth > 768"
                 v-model:value="selectedDay"
                 :options="days"/>
         </FLex>
@@ -128,6 +129,7 @@ export default {
             },
             showAllWorkers: true,
             selectedDay: null,
+            windowWidth: window.innerWidth,
         }
     },
     computed: {
@@ -195,6 +197,13 @@ export default {
 
             return days
         },
+        view() {
+            if (this.windowWidth <= 768) {
+                return 'listWeek'
+            } else {
+                return 'resourceTimelineWeek'
+            }
+        },
     },
     methods: {
         authApi,
@@ -213,8 +222,14 @@ export default {
                     formatToYMDHIS(fetchInfo.start),
                     formatToYMDHIS(fetchInfo.end)
                 )
-                this.events = events
-                successCallback(events.map(
+                this.events = events.filter(event => {
+                    if (this.showAllWorkers) {
+                        return true
+                    } else {
+                        return event.user_id == authApi.user()?.id
+                    }
+                })
+                successCallback(this.events.map(
                     event => this.toEcEvent(event)
                 ))
             } catch (err) {
@@ -247,7 +262,6 @@ export default {
             let time = 0
 
             this.events.filter(event => event.user_id == worker.id && event.type == type).map(event => {
-                console.log(event.start, event.end ?? new Date(), this.diffInHours(event.start, event.end ?? new Date()))
                 time += this.diffInHours(event.start, event.end ?? new Date())
             })
 
@@ -442,13 +456,6 @@ export default {
                 scroller.scrollLeft = dayColumn.offsetLeft
             })
         },
-        getView() {
-            if (window.innerWidth <= 768) {
-                return 'listWeek'
-            } else {
-                return 'resourceTimelineWeek'
-            }
-        },
     },
     watch: {
         resources: {
@@ -480,10 +487,13 @@ export default {
         selectedDay() {
             this.scrollToDay(this.selectedDay)  
         },
+        showAllWorkers() {
+            this.ec.refetchEvents()
+        },  
     },
     mounted() {
         this.ec = EventCalendar.create(document.getElementById('ec'), {
-            view: this.getView(),
+            view: this.view,
             headerToolbar: {
                 start: '',
                 center: '',
@@ -537,7 +547,8 @@ export default {
         })
 
         window.addEventListener('resize', () => {
-            this.ec.setOption('view', this.getView())
+            this.windowWidth = window.innerWidth
+            this.ec.setOption('view', this.view)
         })
     },
 }
