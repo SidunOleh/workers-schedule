@@ -193,7 +193,7 @@ export default {
                 hours += this.calcWorkerTime(worker)
             })
 
-            return Math.round(hours * 10) / 10
+            return Math.round(hours * 100) / 100
         },
         totalRealHours() {
             let hours = 0
@@ -201,7 +201,7 @@ export default {
                 hours += this.calcWorkerTime(worker, 'real')
             })
 
-            return Math.round(hours * 10) / 10
+            return Math.round(hours * 100) / 100
         },
         isItPrevWeek() {
             if (! this.week[0]) {
@@ -356,7 +356,7 @@ export default {
                 time += this.diffInHours(event.start, event.end ?? new Date())
             })
 
-            return Math.round(time * 10) / 10
+            return Math.round(time * 100) / 100
         },
         diffInHours(start, end) {
             const _start = new Date(start)
