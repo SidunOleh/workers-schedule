@@ -365,7 +365,7 @@ export default {
             const diffMs = _end - _start
             const diffHours = diffMs / 1000 / 60 / 60
 
-            return Math.round(diffHours * 10) / 10
+            return diffHours
         },
         async deleteWorker(id) {
             try {
