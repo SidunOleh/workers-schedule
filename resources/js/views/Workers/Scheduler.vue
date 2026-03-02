@@ -265,7 +265,7 @@ export default {
                 time += this.diffInHours(event.start, event.end ?? new Date())
             })
 
-            return Math.round(time * 10) / 10
+            return Math.round(time * 100) / 100
         },
         diffInHours(start, end) {
             const _start = new Date(start)
@@ -274,7 +274,7 @@ export default {
             const diffMs = _end - _start
             const diffHours = diffMs / 1000 / 60 / 60
 
-            return Math.round(diffHours * 10) / 10
+            return diffHours
         },
         setEventsForNotWorkingHours() {
             if (! this.ec)  {
