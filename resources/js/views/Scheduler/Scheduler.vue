@@ -6,7 +6,8 @@
         :wrap="'wrap'">
         <Flex 
             :gap="10"
-            :align="'center'">
+            :align="'center'"
+            :wrap="'wrap'">
             <Flex 
                 :gap="5"
                 :align="'center'"
@@ -20,6 +21,11 @@
             </FLex>
 
             <strong>{{ calendarLabel }}</strong>
+
+            <Switch 
+                checked-children="Week" 
+                un-checked-children="List"
+                v-model:checked="showWeekView"/>
 
             <Segmented 
                 v-model:value="selectedDay"
@@ -59,12 +65,14 @@
             </FLex>
 
             <Button 
+                title="Edit"
                 type="text"
                 @click="editCurrentUser">
                 ⚙️
             </Button>
 
             <Button 
+                title="Logout"
                 type="text"
                 :loading="logout.loading"
                 @click="userLogout">
@@ -102,7 +110,7 @@
 <script>
 import usersApi from '../../api/users'
 import eventsApi from '../../api/events'
-import { message, Flex, Button, Spin, Modal, Segmented, } from 'ant-design-vue'
+import { message, Flex, Button, Spin, Modal, Segmented, Switch, } from 'ant-design-vue'
 import UsersModal from '../Users/Modal.vue'
 import UnavailableDaysModal from '../Workers/UnavailableDaysModal.vue'
 import { formatToYMDHIS, formatAMPM, } from '../../helpers/helpers'
@@ -112,7 +120,7 @@ export default {
     components: {
         Flex, Button, UsersModal,
         Spin, Modal, UnavailableDaysModal,
-        Segmented,
+        Segmented, Switch,
     },
     data() {
         return {
@@ -157,6 +165,10 @@ export default {
                 loading: false,
             },
             selectedDay: null,
+            publish: {
+                loading: false,
+            },
+            showWeekView: true,
         }
     },
     computed: {
@@ -172,13 +184,13 @@ export default {
                                 <div>
                                     ${this.calcWorkerTime(worker)}h/${this.calcWorkerTime(worker, 'real')}h
                                 </div>
-                                <div class="worker-settings">
+                                <div class="worker-settings" title="Settings">
                                     ⚙️
                                 </div>
-                                <div class="worker-edit">
+                                <div class="worker-edit" title="Edit">
                                     📝
                                 </div>
-                                <div class="worker-delete">
+                                <div class="worker-delete" title="Delete">
                                     🗑
                                 </div>
                             </div>
@@ -248,6 +260,9 @@ export default {
 
             return days
         },
+        calendarView() {
+            return this.showWeekView ? 'resourceTimelineWeek' : 'listWeek'
+        },
     },
     methods: {
         Modal,
@@ -287,11 +302,17 @@ export default {
                 resourceIds: [event.user_id],
                 start: new Date(event.start),
                 end: event.end ? new Date(event.end) : new Date(),
-                title: {html:`<div class="event-card"><span> - ${formatAMPM(event.end)}</span><span class="delete-event" data-event-id="${event.id}">🗑</span></div>`},
+                title: {html:`
+                    <div class="event-card">
+                        <span>${event.user.name}</span>
+                        <span class="delete-event" data-event-id="${event.id}" title="Delete">
+                            🗑
+                        </span>
+                    </div>`},
                 color: event.user.color ?? 'black',
                 extendedProps: {...event},
                 display: event.type == 'real' ? 'background' : '',
-                content: 'dd',
+                classNames: [event.published ? 'published' : 'not-published'],
             }
         },
         async createEvent(e) {
@@ -574,7 +595,12 @@ export default {
                 }
 
                 const firstDay = new Date(this.week[0])
-                const targetDate = new Date(date)
+
+                const [year, month, day] = date.split('-').map(num => parseInt(num, 10));
+                const targetDate = new Date()
+                targetDate.setFullYear(year)
+                targetDate.setMonth(month - 1)
+                targetDate.setDate(day)
 
                 const dayDiff = Math.floor((targetDate - firstDay) / (1000 * 60 * 60 * 24))
 
@@ -589,6 +615,39 @@ export default {
             this.usersModal.action = 'edit'
             this.usersModal.title = 'Edit user'
             this.usersModal.open = true
+        },
+        dayTitleHtml(date) {
+            const formattedDate = date.toLocaleDateString('en-US', {
+                weekday: 'short', 
+                month: 'numeric', 
+                day: 'numeric',
+            })
+
+            return `
+            <div style="display: flex; gap: 10px; justify-content: center; align-items: center;">
+                <span>${formattedDate}</span>
+                <div class="publish-btn" title="Publish" data-date="${formatToYMDHIS(date, false)}">
+                    🅿️
+                </div>
+            </div>
+            `
+        },
+        async publishDateEvents(date) {
+            try {
+                this.publish.loading = true
+
+                await eventsApi.publish(date)
+
+                message.success('Successfully published.')
+
+                this.ec.refetchEvents()
+            } catch (err) {
+                console.error(err)
+
+                message.error(err?.response?.data?.message ?? err.message)
+            } finally {
+                this.publish.loading = false
+            }
         },
     },
     watch: {
@@ -621,10 +680,13 @@ export default {
         selectedDay() {
             this.scrollToDay(this.selectedDay)  
         },
+        calendarView() {
+            this.ec.setOption('view', this.calendarView)
+        },
     },
     mounted() {
         this.ec = EventCalendar.create(document.getElementById('ec'), {
-            view: 'resourceTimelineWeek',
+            view: this.calendarView,
             headerToolbar: {
                 start: '',
                 center: '',
@@ -639,6 +701,7 @@ export default {
             slotDuration: '00:15:00',
             firstDay: 1,
             date: new Date(),
+            displayEventEnd: true,
             select: e => {
                 if (!this.isValidDateRange(e.start, e.end)) {
                     message.error('Invalid date range!')
@@ -666,7 +729,10 @@ export default {
 
                 this.editEvent(e.event)
             },
-            eventSources: [{events: this.getEvents,}]
+            eventSources: [{events: this.getEvents,}],
+            dayHeaderFormat: date => {
+                return {html: this.dayTitleHtml(date)}
+            },
         })
 
         this.setCurrentWeek()
@@ -746,6 +812,23 @@ export default {
                 },
             })
         })
+
+        document.addEventListener('click', (e) => {
+            const el = e.target
+
+            if (! el.classList.contains('publish-btn')) {
+                return
+            }
+
+            Modal.confirm({
+                title: 'Are you sure you want to publish?',
+                okText: 'Yes',
+                cancelText: 'No',
+                onOk: () => {
+                    this.publishDateEvents(el.getAttribute('data-date'))
+                },
+            })
+        })
     },
 }
 </script>
@@ -796,7 +879,7 @@ export default {
 }
 
 #ec {
-    height: calc(100vh - 87px); 
+    height: calc(100vh - 90px); 
 }
 
 #ec .ec-container {
@@ -832,6 +915,17 @@ export default {
 }
 
 #ec .delete-event:hover {
+    scale: 1.1;
+}
+
+#ec .ec-event.not-published {
+    opacity: 0.7;
+}
+
+#ec .publish-btn {
+    cursor: pointer;
+}
+#ec .publish-btn:hover {
     scale: 1.1;
 }
 </style>

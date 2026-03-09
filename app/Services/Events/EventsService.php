@@ -30,6 +30,17 @@ class EventsService
         })->whereNotNull('end')->get();
     }
 
+    public function getForWorkers(Carbon $start, Carbon $end)
+    {
+        $startStr = $start->format('Y-m-d H:i:s');
+        $endStr = $end->format('Y-m-d H:i:s');
+        
+        return WorkerEvent::where(function ($q) use($startStr, $endStr) {
+            $q->whereBetween('start', [$startStr, $endStr])
+            ->orWhereBetween('end', [$startStr, $endStr]);
+        })->whereNotNull('end')->where('published', true)->get();
+    }
+
     public function create(User $user, Carbon $start, ?Carbon $end = null, $type = WorkerEvent::PLANED): WorkerEvent
     {
         if (! $this->usersService->isAvailableTimeRage($user, $start, $end)) {
@@ -103,5 +114,16 @@ class EventsService
     public function getUnclosedEvent(User $user): ?WorkerEvent
     {
         return WorkerEvent::whereNull('end')->where('user_id', $user->id)->first();
+    }
+
+    public function publish(Carbon $date): void
+    {
+        $events = WorkerEvent::where(DB::raw('DATE(start)'), $date->format('Y-m-d'))
+            ->where('type', WorkerEvent::PLANED)
+            ->get();
+
+        foreach ($events as $event) {
+            $event->update(['published' => true]);
+        }
     }
 }

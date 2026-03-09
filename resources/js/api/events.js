@@ -4,6 +4,11 @@ export default {
 
         return res.data
     },
+    async getForWorkers(start, end) {
+        const res = await axios.get(`/api/events/for-workers?start=${start}&end=${end}`)
+
+        return res.data
+    },
     async create(data) {
         const res = await axios.post('/api/events', data)
 
@@ -26,6 +31,11 @@ export default {
     },
     async copy(start, end) {
         const res = await axios.post(`/api/events/copy?start=${start}&end=${end}`)
+
+        return res.data
+    },
+    async publish(date) {
+        const res = await axios.post(`/api/events/publish?date=${date}`)
 
         return res.data
     },

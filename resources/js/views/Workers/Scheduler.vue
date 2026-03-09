@@ -54,6 +54,14 @@
             :gap="20"
             :align="'center'">
             <Button 
+                title="Settings"
+                type="text"
+                @click="openSettingsModal">
+                ⚙️
+            </Button>
+
+            <Button 
+                title="Logout"
                 type="text"
                 :loading="logout.loading"
                 @click="userLogout">
@@ -145,7 +153,6 @@ export default {
                                 ${authApi.user()?.id == worker.id ? `<div>
                                     ${this.calcWorkerTime(worker)}h/${this.calcWorkerTime(worker, 'real')}h
                                 </div>` : ''}
-                                ${authApi.user()?.id == worker.id ? '<div class="worker-settings">⚙️</div>' : ''}
                             </div>
                         </div>
                         `,
@@ -218,7 +225,7 @@ export default {
         async getEvents(fetchInfo, successCallback) {
             try {
                 this.loading = true
-                const events = await eventsApi.get(
+                const events = await eventsApi.getForWorkers(
                     formatToYMDHIS(fetchInfo.start),
                     formatToYMDHIS(fetchInfo.end)
                 )
@@ -446,7 +453,12 @@ export default {
                 }
 
                 const firstDay = new Date(this.week[0])
-                const targetDate = new Date(date)
+
+                const [year, month, day] = date.split('-').map(num => parseInt(num, 10));
+                const targetDate = new Date()
+                targetDate.setFullYear(year)
+                targetDate.setMonth(month - 1)
+                targetDate.setDate(day)
 
                 const dayDiff = Math.floor((targetDate - firstDay) / (1000 * 60 * 60 * 24))
 
@@ -455,6 +467,18 @@ export default {
                 const dayColumn = days[index]
                 scroller.scrollLeft = dayColumn.offsetLeft
             })
+        },
+        openSettingsModal() {
+            this.unavailableDaysModal.worker = authApi.user().id
+            this.unavailableDaysModal.open = true
+
+            const view = this.ec.getView()
+            const start = new Date(view.activeStart)
+            const end = new Date(view.activeEnd)
+            end.setDate(end.getDate() - 1)
+            this.unavailableDaysModal.start = start
+            this.unavailableDaysModal.end = end
+            this.unavailableDaysModal.title = `Settings ${this.formatCalendarDate()}`
         },
     },
     watch: {
@@ -511,31 +535,13 @@ export default {
             selectable: false,
             eventStartEditable: false,
             eventDurationEditable: false,
+            displayEventEnd: true,
         })
 
         this.setCurrentWeek()
         this.setEventsForNotWorkingHours()
         this.getWorkers()
         this.getClockIn()
-
-        document.addEventListener('click', e => {
-            if (! e.target.classList.contains('worker-settings')) {
-                return
-            }
-
-            const el = e.target.closest('.worker')
-
-            this.unavailableDaysModal.worker = el.getAttribute('data-id')
-            this.unavailableDaysModal.open = true
-
-            const view = this.ec.getView()
-            const start = new Date(view.activeStart)
-            const end = new Date(view.activeEnd)
-            end.setDate(end.getDate() - 1)
-            this.unavailableDaysModal.start = start
-            this.unavailableDaysModal.end = end
-            this.unavailableDaysModal.title = `Settings ${this.formatCalendarDate()}`
-        })
 
         this.$nextTick(() => {
             const scroller = document.querySelector('#ec .ec-body') || document.getElementById('ec')

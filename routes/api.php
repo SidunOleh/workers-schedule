@@ -4,6 +4,8 @@ use App\Http\Controllers\Events\ClearController;
 use App\Http\Controllers\Events\CopyController;
 use App\Http\Controllers\Events\DeleteController as EventsDeleteController;
 use App\Http\Controllers\Events\GetController;
+use App\Http\Controllers\Events\GetForWorkersController;
+use App\Http\Controllers\Events\PublishController;
 use App\Http\Controllers\Events\StoreController as EventsStoreController;
 use App\Http\Controllers\Events\UpdateController as EventsUpdateController;
 use App\Http\Controllers\Users\ChangeUnavailableDaysController;
@@ -34,9 +36,11 @@ Route::middleware(['auth:sanctum',])->group(function () {
 
     Route::prefix('/events')->name('events.')->group(function () {
         Route::get('/', GetController::class)->name('get');
+        Route::get('/for-workers', GetForWorkersController::class)->name('get-for-workers');
         Route::post('/', EventsStoreController::class)->name('store');
         Route::post('/clear', ClearController::class)->name('clear');
         Route::post('/copy', CopyController::class)->name('copy');
+        Route::post('/publish', PublishController::class)->name('publish');
         Route::put('/{workerEvent}', EventsUpdateController::class)->name('update');
         Route::delete('/{workerEvent}', EventsDeleteController::class)->name('delete');
     });

@@ -12,11 +12,13 @@ class WorkerEvent extends Model
         'end',
         'user_id',
         'type',
+        'published',
     ];
 
     protected $casts = [
         'start' => 'date:Y-m-d H:i:s',
         'end' => 'date:Y-m-d H:i:s',
+        'published' => 'boolean',
     ];
 
     protected $with = [
