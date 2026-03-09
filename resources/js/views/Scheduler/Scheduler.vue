@@ -311,8 +311,8 @@ export default {
                     </div>`},
                 color: event.user.color ?? 'black',
                 extendedProps: {...event},
-                display: event.type == 'real' ? 'background' : '',
-                classNames: [event.published ? 'published' : 'not-published'],
+                display: event.type == 'real' ? '' : '',
+                classNames: [event.published ? 'published' : 'not-published', event.type,],
             }
         },
         async createEvent(e) {
@@ -927,5 +927,9 @@ export default {
 }
 #ec .publish-btn:hover {
     scale: 1.1;
+}
+
+#ec .ec-event.real {
+    opacity: 0.1;
 }
 </style>
