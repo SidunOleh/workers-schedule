@@ -919,7 +919,7 @@ export default {
 }
 
 #ec .ec-event.not-published {
-    opacity: 0.7;
+    opacity: 0.5;
 }
 
 #ec .publish-btn {
