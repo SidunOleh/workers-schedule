@@ -65,6 +65,7 @@ class EventsService
             'user_id' => $user->id,
             'start' => $start->format('Y-m-d H:i:s'),
             'end' => $end->format('Y-m-d H:i:s'),
+            'published' => false,
         ]);
     }
 
